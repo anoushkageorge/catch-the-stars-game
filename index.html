@@ -1,1 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ocean Catch Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Quicksand', sans-serif, system-ui;
+            touch-action: manipulation;
+        }
 
+        .ocean-bg {
+            background: linear-gradient(180deg, #0099ff 0%, #001e3c 100%);
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bubble {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            animation: float 8s infinite ease-in-out;
+        }
+
+        .seaweed {
+            position: absolute;
+            bottom: 0;
+            animation: sway 5s infinite ease-in-out;
+        }
+
+        .fish {
+            position: absolute;
+            cursor: pointer;
+            transition: transform 0.2s;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+        }
+
+        .fish:hover {
+            transform: scale(1.1);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); }
+            50% { transform: translateY(-20px) translateX(10px); }
+        }
+
+        @keyframes sway {
+            0%, 100% { transform: rotate(-5deg); }
+            50% { transform: rotate(5deg); }
+        }
+
+        .score-panel {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #00c6ff, #0072ff);
+            transition: all 0.3s;
+        }
+
+        .start-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .start-btn:active {
+            transform: translateY(-1px);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="ocean-bg" id="game-container">
+        <!-- Decorative elements -->
+        <div id="bubbles"></div>
+        <div id="seaweed"></div>
+        
+        <!-- Game UI -->
+        <div style="position: absolute; top: 16px; left: 16px; right: 16px; display: flex; justify-content: space-between; align-items: center;">
+            <div class="score-panel" style="padding: 12px 24px; color: white; font-weight: bold;">
+                Score: <span id="score">0</span>
+            </div>
+            <div class="score-panel" style="padding: 12px 24px; color: white; font-weight: bold;">
+                Time: <span id="timer">30</span>s
+            </div>
+        </div>
+        
+        <!-- Start/Restart Screen -->
+        <div id="start-screen" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.5); z-index: 50;">
+            <div style="background-color: rgba(255,255,255,0.2); backdrop-filter: blur(8px); padding: 32px; border-radius: 16px; border: 2px solid rgba(255,255,255,0.3); box-shadow: 0 15px 25px rgba(0,0,0,0.2); max-width: 400px; width: 100%; margin: 0 16px;">
+                <h1 style="font-size: 36px; font-weight: bold; color: white; text-align: center; margin-bottom: 16px;">Ocean Catch</h1>
+                <p style="color: white; text-align: center; margin-bottom: 24px;">Catch as many sea creatures as you can in 30 seconds!</p>
+                <button id="start-btn" class="start-btn" style="width: 100%; padding: 12px 24px; border-radius: 9999px; color: white; font-weight: bold; font-size: 18px; border: none; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    Start Game
+                </button>
+            </div>
+        </div>
+        
+        <!-- Game Over Screen -->
+        <div id="game-over" class="hidden" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.5); z-index: 50;">
+            <div style="background-color: rgba(255,255,255,0.2); backdrop-filter: blur(8px); padding: 32px; border-radius: 16px; border: 2px solid rgba(255,255,255,0.3); box-shadow: 0 15px 25px rgba(0,0,0,0.2); max-width: 400px; width: 100%; margin: 0 16px;">
+                <h1 style="font-size: 36px; font-weight: bold; color: white; text-align: center; margin-bottom: 16px;">Game Over!</h1>
+                <p style="color: white; text-align: center; margin-bottom: 8px;">Your score:</p>
+                <p id="final-score" style="font-size: 48px; font-weight: bold; color: white; text-align: center; margin-bottom: 24px;">0</p>
+                <button id="restart-btn" class="start-btn" style="width: 100%; padding: 12px 24px; border-radius: 9999px; color: white; font-weight: bold; font-size: 18px; border: none; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    Play Again
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const gameContainer = document.getElementById('game-container');
+            const bubblesContainer = document.getElementById('bubbles');
+            const seaweedContainer = document.getElementById('seaweed');
+            const scoreElement = document.getElementById('score');
+            const timerElement = document.getElementById('timer');
+            const startScreen = document.getElementById('start-screen');
+            const gameOverScreen = document.getElementById('game-over');
+            const startBtn = document.getElementById('start-btn');
+            const restartBtn = document.getElementById('restart-btn');
+            const finalScoreElement = document.getElementById('final-score');
+            
+            let score = 0;
+            let timeLeft = 30;
+            let gameActive = false;
+            let timerInterval;
+            let fishInterval;
+            
+            // Create bubbles
+            function createBubbles() {
+                bubblesContainer.innerHTML = '';
+                for (let i = 0; i < 20; i++) {
+                    const bubble = document.createElement('div');
+                    bubble.classList.add('bubble');
+                    
+                    const size = Math.random() * 30 + 10;
+                    bubble.style.width = `${size}px`;
+                    bubble.style.height = `${size}px`;
+                    
+                    bubble.style.left = `${Math.random() * 100}%`;
+                    bubble.style.bottom = `${Math.random() * 100}%`;
+                    bubble.style.animationDelay = `${Math.random() * 8}s`;
+                    bubble.style.animationDuration = `${Math.random() * 10 + 5}s`;
+                    
+                    bubblesContainer.appendChild(bubble);
+                }
+            }
+            
+            // Create seaweed
+            function createSeaweed() {
+                seaweedContainer.innerHTML = '';
+                for (let i = 0; i < 8; i++) {
+                    const seaweed = document.createElement('div');
+                    seaweed.classList.add('seaweed');
+                    
+                    seaweed.style.left = `${i * 15 + Math.random() * 10}%`;
+                    seaweed.style.animationDelay = `${Math.random() * 5}s`;
+                    
+                    // SVG seaweed
+                    seaweed.innerHTML = `
+                        <svg width="60" height="180" viewBox="0 0 60 180" fill="none">
+                            <path d="M30 0C30 0 10 30 30 60C50 90 10 120 30 150C50 180 30 180 30 180" 
+                                  stroke="#0a5c36" stroke-width="8" stroke-linecap="round"/>
+                        </svg>
+                    `;
+                    
+                    seaweedContainer.appendChild(seaweed);
+                }
+            }
+            
+            // Create a fish
+            function createFish() {
+                if (!gameActive) return;
+                
+                const fish = document.createElement('div');
+                fish.classList.add('fish');
+                
+                // Random fish type
+                const fishType = Math.floor(Math.random() * 3);
+                const fishColors = ['#FF9F1C', '#2EC4B6', '#E71D36'];
+                const fishSizes = [60, 50, 40];
+                const fishSpeeds = [3000, 4000, 2500];
+                
+                const size = fishSizes[fishType];
+                const color = fishColors[fishType];
+                const speed = fishSpeeds[fishType] + Math.random() * 2000;
+                
+                // Random direction
+                const direction = Math.random() > 0.5 ? 1 : -1;
+                const startX = direction > 0 ? -size : window.innerWidth;
+                const endX = direction > 0 ? window.innerWidth : -size;
+                
+                fish.style.top = `${Math.random() * (window.innerHeight - 200) + 50}px`;
+                fish.style.left = `${startX}px`;
+                
+                // SVG fish
+                fish.innerHTML = `
+                    <svg width="${size}" height="${size * 0.6}" viewBox="0 0 100 60" fill="none">
+                        <path d="M20 30C20 16.7 31.7 5 45 5C65 5 80 30 95 30C80 30 65 55 45 55C31.7 55 20 43.3 20 30Z" 
+                              fill="${color}"/>
+                        <circle cx="35" cy="25" r="5" fill="white"/>
+                        <circle cx="35" cy="25" r="2" fill="black"/>
+                        <path d="M5 15C15 20 20 25 20 30C20 35 15 40 5 45" 
+                              stroke="${color}" stroke-width="8" stroke-linecap="round"/>
+                    </svg>
+                `;
+                
+                if (direction < 0) {
+                    fish.style.transform = 'scaleX(-1)';
+                }
+                
+                fish.addEventListener('click', () => {
+                    if (!gameActive) return;
+                    
+                    // Add points based on fish type
+                    const points = 3 - fishType;
+                    score += points;
+                    scoreElement.textContent = score;
+                    
+                    // Visual feedback
+                    const pointsPopup = document.createElement('div');
+                    pointsPopup.textContent = `+${points}`;
+                    pointsPopup.style.position = 'absolute';
+                    pointsPopup.style.left = fish.style.left;
+                    pointsPopup.style.top = fish.style.top;
+                    pointsPopup.style.color = 'white';
+                    pointsPopup.style.fontWeight = 'bold';
+                    pointsPopup.style.fontSize = '24px';
+                    pointsPopup.style.textShadow = '0 0 5px rgba(0,0,0,0.5)';
+                    pointsPopup.style.pointerEvents = 'none';
+                    pointsPopup.style.zIndex = '100';
+                    gameContainer.appendChild(pointsPopup);
+                    
+                    // Animate and remove
+                    fish.style.opacity = '0';
+                    fish.style.transform = `${fish.style.transform} scale(1.5)`;
+                    
+                    setTimeout(() => {
+                        fish.remove();
+                        pointsPopup.remove();
+                    }, 300);
+                });
+                
+                gameContainer.appendChild(fish);
+                
+                // Animate fish swimming
+                const animation = fish.animate(
+                    [
+                        { left: `${startX}px` },
+                        { left: `${endX}px` }
+                    ],
+                    {
+                        duration: speed,
+                        easing: 'linear'
+                    }
+                );
+                
+                animation.onfinish = () => {
+                    fish.remove();
+                };
+            }
+            
+            // Start game
+            function startGame() {
+                score = 0;
+                timeLeft = 30;
+                gameActive = true;
+                
+                scoreElement.textContent = score;
+                timerElement.textContent = timeLeft;
+                
+                startScreen.classList.add('hidden');
+                gameOverScreen.classList.add('hidden');
+                
+                // Create fish at intervals
+                fishInterval = setInterval(createFish, 1000);
+                
+                // Start timer
+                timerInterval = setInterval(() => {
+                    timeLeft--;
+                    timerElement.textContent = timeLeft;
+                    
+                    if (timeLeft <= 0) {
+                        endGame();
+                    }
+                }, 1000);
+            }
+            
+            // End game
+            function endGame() {
+                gameActive = false;
+                clearInterval(timerInterval);
+                clearInterval(fishInterval);
+                
+                // Remove all fish
+                document.querySelectorAll('.fish').forEach(fish => {
+                    fish.remove();
+                });
+                
+                finalScoreElement.textContent = score;
+                gameOverScreen.classList.remove('hidden');
+            }
+            
+            // Initialize
+            createBubbles();
+            createSeaweed();
+            
+            // Event listeners
+            startBtn.addEventListener('click', startGame);
+            restartBtn.addEventListener('click', startGame);
+            
+            // Make responsive
+            window.addEventListener('resize', () => {
+                createBubbles();
+                createSeaweed();
+            });
+        });
+    </script>
+</body>
+</html>
